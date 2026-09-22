@@ -390,9 +390,12 @@
     const want = action === 'record' ? 'stopped' : 'recording';
     const names = lastData.devices.filter((d) => d.online && d.status === want).map((d) => d.name);
     if (!names.length) return toast([action === 'record' ? 'Nothing to start: no idle units.' : 'Nothing to stop: no units are recording.']);
-    const ok = await confirmDialog(action === 'record' ? `Start recording on ${names.length} unit${names.length > 1 ? 's' : ''}?`
-      : `STOP recording on ${names.length} unit${names.length > 1 ? 's' : ''}?`, names, action === 'record' ? 'START ALL' : 'STOP ALL');
-    if (!ok) return;
+    // Starting is easily undone (just stop again), so ALL START fires immediately; ALL STOP can lose
+    // footage, so it still confirms.
+    if (action === 'stop') {
+      const ok = await confirmDialog(`STOP recording on ${names.length} unit${names.length > 1 ? 's' : ''}?`, names, 'STOP ALL');
+      if (!ok) return;
+    }
     try {
       const j = await post('/api/control-all', { action });
       const failed = j.results.filter((r) => !r.ok && !r.skipped);
